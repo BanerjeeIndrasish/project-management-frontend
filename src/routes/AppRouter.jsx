@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import PublicRoute from "./PublicRoute";
 import ProtectedRoute from "./ProtectedRoute";
-import MainLayout from "../components/layout/MainlayOut";
+import MainLayout from "../components/layout/MainLayout";
 import UsersPage from "../pages/users/UsersPage";
 import Login from "../pages/auth/Login";
 import ProjectsPage from "../pages/projects/ProjectPage";
