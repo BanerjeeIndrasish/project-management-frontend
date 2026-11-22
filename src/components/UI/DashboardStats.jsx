@@ -110,7 +110,7 @@ export default function DashboardStats({ endpoint = "/dashboard/stats" }) {
         try {
             const res = await callApiWithToken({ url: endpoint });
             if (!res.status) throw new Error("Request failed.");
-            console.log('Ressssssssssssssssssss', res, res.data)
+            // console.log('Ressssssssssssssssssss', res, res.data)
             setStats(res.data);
         } catch (err) {
             setError(err.message || "Couldn't load dashboard stats.");

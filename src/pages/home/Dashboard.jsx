@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { callApiWithToken } from "../../api/callApi";
 import { useAuth } from "../../context/AuthContext";
-import DashboardStats from "../../components/UI/DashBoardStats";
+import DashboardStats from '../../components/UI/DashboardStats';
 
 // ---- Severity styling, kept in one place so cards, badges and the icon all agree ----
 const SEVERITY = {
