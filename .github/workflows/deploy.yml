@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies and build
         env:
-          VITE_API_URL: /api
+          VITE_BASE_URL: /api
         run: |
           npm ci
           npm run build
