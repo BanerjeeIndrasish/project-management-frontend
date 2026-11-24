@@ -42,7 +42,7 @@ export default function Header({ onMenuClick }) {
                 <AnimatePresence>
                     {menuOpen && (
                         <>
-                            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                            <div className="fixed inset-0 z-3" onClick={() => setMenuOpen(false)} />
                             <motion.div
                                 initial={{ opacity: 0, y: -6, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}

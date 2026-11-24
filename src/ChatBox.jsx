@@ -1,10 +1,10 @@
-'use client';
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, FileText, ListChecks, RotateCcw, Send, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowLeft, FileText, ListChecks, RotateCcw, Send, Sparkles } from 'lucide-react';
 import { formatTime } from './utility/helper';
 import ReportModal, { detectResultKind } from './components/UI/ProjectReport';
+import SuggestionChip from './components/UI/SuggestionChip';
+import { followUpSuggestions, SUGGESTIONS } from './utility/suggestions';
 
 function makeId() {
     return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -80,11 +80,15 @@ function reportInfo(message) {
 export default function ChatBox({
     onSendMessage,
     initialMessages = [],
+    projects = [],        // [{ id, name }]
+    tasks = [],           // [{ id, title, status }]
+    readOnly = false,
     title = 'Assistant',
     subtitle = 'Usually replies in a moment',
     placeholder = 'Write a message…',
     className = '',
 }) {
+    const [picker, setPicker] = useState(null);
     const [messages, setMessages] = useState(initialMessages);
     const [input, setInput] = useState('');
     const [isSending, setIsSending] = useState(false);
@@ -161,6 +165,36 @@ export default function ChatBox({
         dispatchMessage(toRetry);
     };
 
+    const applySuggestion = (s) => {
+        if (s.mode === 'pick') {
+            setPicker(s);
+            return;
+        }
+        dispatchMessage(s.prompt);
+    };
+
+    const pickItem = (item) => {
+        dispatchMessage(picker.build(item));
+        setPicker(null);
+    };
+
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant' && !m.isError);
+
+    const baseChips = [
+        ...followUpSuggestions(lastAssistant?.result?.projectName),
+        ...SUGGESTIONS,
+    ].filter((s) => !(readOnly && s.write));
+
+    // What the strip shows: either the main chips, or the list to pick from
+    const pickItems = picker
+        ? (picker.pick === 'projects'
+            ? projects.map((p) => ({ key: p.id, label: p.name, item: p }))
+            : tasks
+                .filter((t) => t.status !== 'Completed')
+                .map((t) => ({ key: t.id, label: t.title, item: t })))
+            .slice(0, 12)
+        : [];
+
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -187,6 +221,39 @@ export default function ChatBox({
             ? 'Task search results'
             : `${activeMessage?.result?.projectName || 'Project'} — Status Update`;
 
+
+
+    const renderChips = () =>
+        picker ? (
+            <>
+                <button
+                    type="button"
+                    onClick={() => setPicker(null)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#E5E3DD] bg-white px-3 py-1.5 text-xs font-medium text-[#6B6A66] hover:bg-[#F0EFEA]"
+                >
+                    <ArrowLeft size={13} /> Back
+                </button>
+                {pickItems.length === 0 && (
+                    <span className="py-1.5 text-xs text-[#8A8880]">Nothing to choose from yet.</span>
+                )}
+                {pickItems.map(({ key, label, item }) => (
+                    <button
+                        key={key}
+                        type="button"
+                        disabled={isSending}
+                        onClick={() => pickItem(item)}
+                        className="shrink-0 whitespace-nowrap rounded-full border border-[#2F6F5E] bg-white px-3 py-1.5 text-xs font-medium text-[#2F6F5E] hover:bg-[#EAF3F0] disabled:opacity-50"
+                    >
+                        {label.length > 28 ? `${label.slice(0, 28)}…` : label}
+                    </button>
+                ))}
+            </>
+        ) : (
+            baseChips.map((s) => (
+                <SuggestionChip key={s.id} s={s} onPick={applySuggestion} disabled={isSending} />
+            ))
+        );
+
     return (
         <div className={`flex h-full w-full flex-col overflow-hidden border border-[#E5E3DD] bg-[#FAFAF9] text-[#1A1A18] ${className}`}>
             {/* Header */}
@@ -205,11 +272,13 @@ export default function ChatBox({
             {/* Messages */}
             <div ref={scrollRef} role="log" aria-live="polite" className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
                 {messages.length === 0 && (
-                    <div className="mt-10 flex flex-col items-center text-center">
+                    <div className="mt-8 flex flex-col items-center text-center">
                         <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#EAF3F0] text-[#2F6F5E]">
                             <Sparkles size={18} />
                         </div>
-                        <p className="text-sm text-[#8A8880]">Say something to start the conversation.</p>
+                        <p className="text-sm font-medium text-[#1A1A18]">What would you like to know?</p>
+                        <p className="mb-4 mt-1 text-xs text-[#8A8880]">Tap a suggestion. No need to know any names.</p>
+                        <div className="flex max-w-md flex-wrap justify-center gap-2">{renderChips()}</div>
                     </div>
                 )}
 
@@ -312,6 +381,12 @@ export default function ChatBox({
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {messages.length > 0 && !isSending && (
+                <div className="flex gap-2 overflow-x-auto border-t border-[#E5E3DD] bg-white px-3 pt-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {renderChips()}
+                </div>
+            )}
 
             {/* Input */}
             <form onSubmit={handleSubmit} className="border-t border-[#E5E3DD] bg-white p-3">

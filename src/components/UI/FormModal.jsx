@@ -382,6 +382,12 @@ const FormModal = (props) => {
             ? "bg-[#B3432B] hover:bg-[#9A3823]"
             : "bg-[#0F5257] hover:bg-[#0C4448]";
 
+    // Footer sits OUTSIDE the scrolling area (shrink-0), so the buttons stay
+    // pinned at the bottom of the modal while only the fields scroll.
+    // Buttons are left-aligned (justify-start).
+    const footerClass =
+        "flex shrink-0 items-center justify-start gap-3 border-t border-[#E4E2DD] bg-white px-6 py-4";
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
@@ -389,11 +395,12 @@ const FormModal = (props) => {
                 if (e.target === e.currentTarget) onCancel();
             }}
         >
+            {/* Flex column: header (fixed) + scrollable body + footer (fixed). */}
             <div
                 style={{ width: "100%", maxWidth: width }}
-                className="relative max-h-[90vh] overflow-hidden rounded-xl bg-white shadow-2xl"
+                className="relative flex max-h-[90vh] flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
             >
-                <div className="flex items-center justify-between border-b border-[#E4E2DD] px-6 py-4">
+                <div className="flex shrink-0 items-center justify-between border-b border-[#E4E2DD] px-6 py-4">
                     <h2 className="text-base font-semibold text-[#1A1D1F]">{modalTitle}</h2>
                     <button
                         type="button"
@@ -404,9 +411,11 @@ const FormModal = (props) => {
                     </button>
                 </div>
 
-                <div className="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
-                    {isForm ? (
-                        <form onSubmit={onSubmit}>
+                {isForm ? (
+                    // The <form> wraps both the scroll area and the footer, so the
+                    // submit button still works even though it is outside the scroller.
+                    <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+                        <div className="min-h-0 flex-1 overflow-y-auto p-6">
                             {formError && (
                                 <div className="mb-5 rounded-md border border-[#B3432B]/30 bg-[#B3432B]/5 px-3 py-2 text-sm text-[#B3432B]">
                                     {formError}
@@ -430,8 +439,48 @@ const FormModal = (props) => {
                                     );
                                 })}
                             </div>
+                        </div>
 
-                            <div className="mt-7 flex justify-end gap-3 border-t border-[#E4E2DD] pt-5">
+                        <div className={footerClass}>
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                disabled={loading}
+                                className="rounded-lg border border-[#E4E2DD] px-4 py-2.5 text-sm font-medium text-[#4B5058] transition hover:bg-[#FAFAF9] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+
+                            {handleSubmit && (
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0F5257] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0C4448] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {loading && <Loader2 size={16} className="animate-spin" />}
+                                    {!loading && <Check size={16} />}
+                                    {isBill
+                                        ? modalTitle === "Generate Bills"
+                                            ? "Generate"
+                                            : "Show"
+                                        : isEditing
+                                            ? "Save"
+                                            : "Create"}
+                                </button>
+                            )}
+                        </div>
+                    </form>
+                ) : (
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                            {otherThanFormElement}
+                        </div>
+
+                        {/* Fix: previously there was no footer at all in non-form
+                            mode, so otherThanFormElement had no way to trigger an
+                            action (e.g. a delete confirmation had nothing to click). */}
+                        {onConfirm && (
+                            <div className={footerClass}>
                                 <button
                                     type="button"
                                     onClick={onCancel}
@@ -440,57 +489,19 @@ const FormModal = (props) => {
                                 >
                                     Cancel
                                 </button>
-
-                                {handleSubmit && (
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0F5257] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#0C4448] disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {loading && <Loader2 size={16} className="animate-spin" />}
-                                        {!loading && <Check size={16} />}
-                                        {isBill
-                                            ? modalTitle === "Generate Bills"
-                                                ? "Generate"
-                                                : "Show"
-                                            : isEditing
-                                                ? "Save"
-                                                : "Create"}
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={onConfirm}
+                                    disabled={loading}
+                                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmButtonClass}`}
+                                >
+                                    {loading && <Loader2 size={16} className="animate-spin" />}
+                                    {confirmLabel}
+                                </button>
                             </div>
-                        </form>
-                    ) : (
-                        <>
-                            {otherThanFormElement}
-
-                            {/* Fix: previously there was no footer at all in non-form
-                                mode, so otherThanFormElement had no way to trigger an
-                                action (e.g. a delete confirmation had nothing to click). */}
-                            {onConfirm && (
-                                <div className="mt-7 flex justify-end gap-3 border-t border-[#E4E2DD] pt-5">
-                                    <button
-                                        type="button"
-                                        onClick={onCancel}
-                                        disabled={loading}
-                                        className="rounded-lg border border-[#E4E2DD] px-4 py-2.5 text-sm font-medium text-[#4B5058] transition hover:bg-[#FAFAF9] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={onConfirm}
-                                        disabled={loading}
-                                        className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmButtonClass}`}
-                                    >
-                                        {loading && <Loader2 size={16} className="animate-spin" />}
-                                        {confirmLabel}
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, X } from "lucide-react";
 import Header from "./Header";
@@ -7,6 +7,7 @@ import Sidebar from "./SideBar";
 import Footer from "./Footer";
 import { callApiWithToken } from "../../api/callApi";
 import ChatBox from "../../ChatBox";
+import { useAuth } from "../../context/AuthContext";
 
 // Decorative backdrop: soft colour washes + a dot grid that fades out toward
 // the bottom. It lives outside the scroll area, so it stays put while pages scroll.
@@ -22,9 +23,63 @@ const Backdrop = () => (
 );
 
 const MainLayout = () => {
+    const { user } = useAuth();
     const [chatOpen, setChatOpen] = useState(false);
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const [projects, setProjects] = useState([]);
+    const [tasks, setTasks] = useState([]);
     const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+
+    // Pull an array out of whatever shape the API returns
+    const toList = (res, key) => {
+        const d = res?.data ?? res; // works whether callApiWithToken returns the axios response or just the data
+        if (Array.isArray(d)) return d;
+        if (Array.isArray(d?.[key])) return d[key];
+        if (Array.isArray(d?.data)) return d.data;
+        return [];
+    };
+
+    const load = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            // no `await` inside the array, so both requests run in parallel
+            const [tasksRes, projectsRes] = await Promise.allSettled([
+                callApiWithToken({ url: '/tasks' }),
+                callApiWithToken({ url: '/projects' }),
+            ]);
+
+            // only fail when BOTH requests fail
+            if (tasksRes.status === 'rejected' && projectsRes.status === 'rejected') {
+                throw new Error('Request failed.');
+            }
+
+            if (projectsRes.status === 'fulfilled') {
+                setProjects(
+                    toList(projectsRes.value, 'projects')
+                        .map((p) => ({ id: p.id, name: p.name }))
+                        .slice(0, 20)
+                );
+            }
+
+            if (tasksRes.status === 'fulfilled') {
+                setTasks(
+                    toList(tasksRes.value, 'tasks')
+                        .filter((t) => t.status !== 'Completed')
+                        .map((t) => ({ id: t.id, title: t.title, status: t.status }))
+                        .slice(0, 20)
+                );
+            }
+        } catch (err) {
+            setError(err.message || "Couldn't load projects and tasks.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
 
     return (
         // App shell: the window never scrolls. Header and footer stay put and
@@ -108,6 +163,10 @@ const MainLayout = () => {
                                                 payload: { prompt },
                                             })
                                         }
+                                        initialMessages={[]}
+                                        projects={projects}
+                                        tasks={tasks}
+                                        readOnly={user?.role_code == 'guest'}
                                     />
                                 </div>
                             </motion.div>
